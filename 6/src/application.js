@@ -1,5 +1,4 @@
 import keyBy from 'lodash/keyBy.js';
-import has from 'lodash/has.js';
 import isEmpty from 'lodash/isEmpty.js';
 import * as yup from 'yup';
 import onChange from 'on-change';
@@ -41,5 +40,87 @@ const validate = (fields) => {
 };
 
 // BEGIN
+export default () => {
+  const container = document.querySelector('[data-container="sign-up"]');
+  const form = container.querySelector('form');
 
+  const state = {
+    name: '',
+    email: '',
+    password: '',
+    passwordConfirmation: '',
+    isSubmitting: false,
+  };
+
+  const touched = {
+    name: false,
+    email: false,
+    password: false,
+    passwordConfirmation: false,
+  };
+
+  const renderField = (name, input, errors) => {
+    const error = errors[name];
+    let feedback = input.nextElementSibling;
+
+    if (error) {
+      input.classList.add('is-invalid');
+      if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+        feedback = document.createElement('div');
+        feedback.classList.add('invalid-feedback');
+        input.after(feedback);
+      }
+      feedback.textContent = error.message;
+    } else {
+      input.classList.remove('is-invalid');
+      if (feedback && feedback.classList.contains('invalid-feedback')) {
+        feedback.remove();
+      }
+    }
+  };
+
+  const render = () => {
+    const submitBtn = form.querySelector('[type="submit"]');
+    const fields = {
+      name: state.name,
+      email: state.email,
+      password: state.password,
+      passwordConfirmation: state.passwordConfirmation,
+    };
+    const errors = validate(fields);
+    const visibleErrors = Object.fromEntries(
+      Object.entries(errors).filter(([key]) => touched[key]),
+    );
+    submitBtn.disabled = state.isSubmitting || !isEmpty(errors);
+
+    ['name', 'email', 'password', 'passwordConfirmation'].forEach((name) => {
+      const input = form.querySelector(`[name="${name}"]`);
+      input.value = state[name];
+      renderField(name, input, visibleErrors);
+    });
+  };
+
+  const proxy = onChange(state, () => {
+    render();
+  });
+
+  form.addEventListener('input', (e) => {
+    const { name, value } = e.target;
+    touched[name] = true;
+    proxy[name] = value;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    proxy.isSubmitting = true;
+    await axios.post(routes.usersPath(), {
+      name: state.name,
+      email: state.email,
+      password: state.password,
+    });
+    container.textContent = 'User Created!';
+  });
+
+  render();
+};
 // END
